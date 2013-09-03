@@ -16,6 +16,9 @@ final class PhrictionDocumentController
     $request = $this->getRequest();
     $user = $request->getUser();
 
+    $show_document_hierarchy_at_the_top = PhabricatorEnv::getEnvConfig(
+      'phriction.show-document-hierarchy-at-the-top');
+
     $slug = PhabricatorSlug::normalize($this->slug);
     if ($slug != $this->slug) {
       $uri = PhrictionDocument::getSlugURI($slug);
@@ -179,8 +182,8 @@ final class PhrictionDocumentController
           'class' => 'phriction-offset'
         ),
         array(
-          $page_content,
-          $children,
+          $show_document_hierarchy_at_the_top ? $children : $page_content,
+          !$show_document_hierarchy_at_the_top ? $children : $page_content,
         ));
 
     return $this->buildApplicationPage(
