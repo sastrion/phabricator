@@ -10,12 +10,10 @@
 .device-desktop .phui-document-view {
   border: 1px solid {$lightblueborder};
   border-bottom: 1px solid {$blueborder};
-  max-width: 960px;
-  margin: 16px auto;
+  margin: 16px 16px;
 }
 
 .device-desktop .phui-document-view.phui-offset-view {
-  max-width: 800px;
 }
 
 .phui-document-sidenav {

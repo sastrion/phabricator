@@ -16,6 +16,9 @@ final class PhabricatorPhrictionConfigOptions
       $this->newOption(
         'metamta.phriction.subject-prefix', 'string', '[Phriction]')
         ->setDescription(pht("Subject prefix for Phriction email.")),
+      $this->newOption(
+        'phriction.show-document-hierarchy-at-the-top', 'bool', false)
+        ->setDescription(pht("Toggles document hierarchy position.")),
     );
   }
 
