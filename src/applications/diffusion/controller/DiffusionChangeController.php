@@ -37,6 +37,7 @@ final class DiffusionChangeController extends DiffusionController {
     );
 
     $changeset_view = new DifferentialChangesetListView();
+    $changeset_view->setTitle(pht('Change'));
     $changeset_view->setChangesets($changesets);
     $changeset_view->setVisibleChangesets($changesets);
     $changeset_view->setRenderingReferences(
@@ -84,8 +85,8 @@ final class DiffusionChangeController extends DiffusionController {
 
     $object_box = id(new PHUIObjectBoxView())
       ->setHeader($header)
-      ->addContent($actions)
-      ->addContent($properties);
+      ->setActionList($actions)
+      ->setPropertyList($properties);
 
     return $this->buildApplicationPage(
       array(

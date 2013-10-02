@@ -365,13 +365,13 @@ final class ManiphestTaskDetailController extends ManiphestController {
 
     $object_box = id(new PHUIObjectBoxView())
       ->setHeader($header)
-      ->addContent($actions)
-      ->addContent($properties);
+      ->setActionList($actions)
+      ->setPropertyList($properties);
 
     $comment_box = id(new PHUIObjectBoxView())
       ->setFlush(true)
       ->setHeader($comment_header)
-      ->addContent($comment_form);
+      ->appendChild($comment_form);
 
     return $this->buildApplicationPage(
       array(
@@ -472,7 +472,7 @@ final class ManiphestTaskDetailController extends ManiphestController {
         ->setWorkflow(true)
         ->setIcon('link')
         ->setDisabled(!$can_edit)
-        ->setWorkflow(!$can_edit));
+        ->setWorkflow(true));
 
     $view->addAction(
       id(new PhabricatorActionView())
@@ -481,7 +481,7 @@ final class ManiphestTaskDetailController extends ManiphestController {
         ->setWorkflow(true)
         ->setIcon('attach')
         ->setDisabled(!$can_edit)
-        ->setWorkflow(!$can_edit));
+        ->setWorkflow(true));
 
     $pholio_app =
       PhabricatorApplication::getByClass('PhabricatorApplicationPholio');
@@ -493,7 +493,7 @@ final class ManiphestTaskDetailController extends ManiphestController {
         ->setWorkflow(true)
         ->setIcon('attach')
         ->setDisabled(!$can_edit)
-        ->setWorkflow(!$can_edit));
+        ->setWorkflow(true));
     }
 
     return $view;
@@ -611,9 +611,12 @@ final class ManiphestTaskDetailController extends ManiphestController {
     if ($file_infos) {
       $file_phids = array_keys($file_infos);
 
-      $files = id(new PhabricatorFile())->loadAllWhere(
-        'phid IN (%Ls)',
-        $file_phids);
+      // TODO: These should probably be handles or something; clean this up
+      // as we sort out file attachments.
+      $files = id(new PhabricatorFileQuery())
+        ->setViewer($viewer)
+        ->withPHIDs($file_phids)
+        ->execute();
 
       $file_view = new PhabricatorFileLinkListView();
       $file_view->setFiles($files);

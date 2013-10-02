@@ -27,7 +27,11 @@ final class PhabricatorFileInfoController extends PhabricatorFileController {
       ->withObjectPHIDs(array($phid))
       ->execute();
 
-    $this->loadHandles(array($file->getAuthorPHID()));
+    $handle_phids = array_merge(
+      array($file->getAuthorPHID()),
+      $file->getObjectPHIDs());
+
+    $this->loadHandles($handle_phids);
     $header = id(new PHUIHeaderView())
       ->setHeader($file->getName());
 
@@ -51,8 +55,8 @@ final class PhabricatorFileInfoController extends PhabricatorFileController {
 
     $object_box = id(new PHUIObjectBoxView())
       ->setHeader($header)
-      ->addContent($actions)
-      ->addContent($properties);
+      ->setActionList($actions)
+      ->setPropertyList($properties);
 
     return $this->buildApplicationPage(
       array(
@@ -113,7 +117,7 @@ final class PhabricatorFileInfoController extends PhabricatorFileController {
     $comment_box = id(new PHUIObjectBoxView())
       ->setFlush(true)
       ->setHeader($add_comment_header)
-      ->addContent($add_comment_form);
+      ->appendChild($add_comment_form);
 
     return array(
       $timeline,
@@ -206,6 +210,15 @@ final class PhabricatorFileInfoController extends PhabricatorFileController {
           $value);
       }
     }
+
+    $phids = $file->getObjectPHIDs();
+    if ($phids) {
+      $view->addSectionHeader(pht('Attached'));
+      $view->addProperty(
+        pht('Attached To'),
+        $this->renderHandlesForPHIDs($phids));
+    }
+
 
     if ($file->isViewableImage()) {
 

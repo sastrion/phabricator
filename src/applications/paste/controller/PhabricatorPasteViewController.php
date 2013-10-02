@@ -44,9 +44,10 @@ final class PhabricatorPasteViewController extends PhabricatorPasteController {
       return new Aphront404Response();
     }
 
-    $file = id(new PhabricatorFile())->loadOneWhere(
-      'phid = %s',
-      $paste->getFilePHID());
+    $file = id(new PhabricatorFileQuery())
+      ->setViewer($user)
+      ->withPHIDs(array($paste->getFilePHID()))
+      ->executeOne();
     if (!$file) {
       return new Aphront400Response();
     }
@@ -71,8 +72,8 @@ final class PhabricatorPasteViewController extends PhabricatorPasteController {
 
     $object_box = id(new PHUIObjectBoxView())
       ->setHeader($header)
-      ->addContent($actions)
-      ->addContent($properties);
+      ->setActionList($actions)
+      ->setPropertyList($properties);
 
     $source_code = $this->buildSourceCodeView(
       $paste,
@@ -139,7 +140,7 @@ final class PhabricatorPasteViewController extends PhabricatorPasteController {
     $comment_box = id(new PHUIObjectBoxView())
       ->setFlush(true)
       ->setHeader($add_comment_header)
-      ->addContent($add_comment_form);
+      ->appendChild($add_comment_form);
 
     return $this->buildApplicationPage(
       array(
