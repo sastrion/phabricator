@@ -8,7 +8,8 @@ final class DifferentialReviewer {
 
   public function __construct($reviewer_phid, $status, $diff_id = null) {
     $this->reviewerPHID = $reviewer_phid;
-    $this->setStatus($status, $diff_id);
+    $this->status = $status;
+    $this->diffID = $diff_id;
   }
 
   public function getReviewerPHID() {
@@ -23,17 +24,9 @@ final class DifferentialReviewer {
     return $this->diffID;
   }
 
-  public function setStatus($status, $diff_id = null) {
-    if ($status == DifferentialReviewerStatus::STATUS_REJECTED
-      && $diff_id === null) {
-
-      throw new Exception('STATUS_REJECTED must have a diff_id set');
-    }
-
-    $this->status = $status;
-    $this->diffID = $diff_id;
-
-    return $this;
+  public function isUser() {
+    $user_type = PhabricatorPeoplePHIDTypeUser::TYPECONST;
+    return (phid_get_type($this->getReviewerPHID()) == $user_type);
   }
 
 }

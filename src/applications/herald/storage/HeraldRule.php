@@ -13,10 +13,11 @@ final class HeraldRule extends HeraldDAO
   protected $repetitionPolicy;
   protected $ruleType;
 
-  protected $configVersion = 12;
+  protected $configVersion = 13;
 
   private $ruleApplied = self::ATTACHABLE; // phids for which this rule has been applied
   private $validAuthor = self::ATTACHABLE;
+  private $author = self::ATTACHABLE;
   private $conditions;
   private $actions;
 
@@ -164,6 +165,15 @@ final class HeraldRule extends HeraldDAO
 
   public function attachValidAuthor($valid) {
     $this->validAuthor = $valid;
+    return $this;
+  }
+
+  public function getAuthor() {
+    return $this->assertAttached($this->author);
+  }
+
+  public function attachAuthor(PhabricatorUser $user) {
+    $this->author = $user;
     return $this;
   }
 

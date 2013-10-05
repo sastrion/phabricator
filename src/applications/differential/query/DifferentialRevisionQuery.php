@@ -495,15 +495,26 @@ final class DifferentialRevisionQuery
     if ($this->responsibles) {
       $basic_authors = $this->authors;
       $basic_reviewers = $this->reviewers;
+
+      $authority_projects = id(new PhabricatorProjectQuery())
+        ->setViewer($this->getViewer())
+        ->withMemberPHIDs($this->responsibles)
+        ->execute();
+      $authority_phids = mpull($authority_projects, 'getPHID');
+
       try {
         // Build the query where the responsible users are authors.
         $this->authors = array_merge($basic_authors, $this->responsibles);
         $this->reviewers = $basic_reviewers;
         $selects[] = $this->buildSelectStatement($conn_r);
 
-        // Build the query where the responsible users are reviewers.
+        // Build the query where the responsible users are reviewers, or
+        // projects they are members of are reviewers.
         $this->authors = $basic_authors;
-        $this->reviewers = array_merge($basic_reviewers, $this->responsibles);
+        $this->reviewers = array_merge(
+          $basic_reviewers,
+          $this->responsibles,
+          $authority_phids);
         $selects[] = $this->buildSelectStatement($conn_r);
 
         // Put everything back like it was.
@@ -599,25 +610,32 @@ final class DifferentialRevisionQuery
     if ($this->reviewers) {
       $joins[] = qsprintf(
         $conn_r,
-        'JOIN %T reviewer_rel ON reviewer_rel.revisionID = r.id '.
-        'AND reviewer_rel.relation = %s '.
-        'AND reviewer_rel.objectPHID in (%Ls)',
-        DifferentialRevision::RELATIONSHIP_TABLE,
-        DifferentialRevision::RELATION_REVIEWER,
+        'JOIN %T e_reviewers ON e_reviewers.src = r.phid '.
+        'AND e_reviewers.type = %s '.
+        'AND e_reviewers.dst in (%Ls)',
+        PhabricatorEdgeConfig::TABLE_NAME_EDGE,
+        PhabricatorEdgeConfig::TYPE_DREV_HAS_REVIEWER,
         $this->reviewers);
     }
 
     if ($this->subscribers) {
+      // TODO: These can be expressed as a JOIN again (and the corresponding
+      // WHERE clause removed) once subscribers move to edges.
       $joins[] = qsprintf(
         $conn_r,
-        'JOIN %T sub_rel ON sub_rel.revisionID = r.id '.
-        'AND sub_rel.relation IN (%Ls) '.
-        'AND sub_rel.objectPHID in (%Ls)',
+        'LEFT JOIN %T sub_rel_cc ON sub_rel_cc.revisionID = r.id '.
+        'AND sub_rel_cc.relation = %s '.
+        'AND sub_rel_cc.objectPHID in (%Ls)',
         DifferentialRevision::RELATIONSHIP_TABLE,
-        array(
-          DifferentialRevision::RELATION_SUBSCRIBED,
-          DifferentialRevision::RELATION_REVIEWER,
-        ),
+        DifferentialRevision::RELATION_SUBSCRIBED,
+        $this->subscribers);
+      $joins[] = qsprintf(
+        $conn_r,
+        'LEFT JOIN %T sub_rel_reviewer ON sub_rel_reviewer.src = r.phid '.
+        'AND sub_rel_reviewer.type = %s '.
+        'AND sub_rel_reviewer.dst in (%Ls)',
+        PhabricatorEdgeConfig::TABLE_NAME_EDGE,
+        PhabricatorEdgeConfig::TYPE_DREV_HAS_REVIEWER,
         $this->subscribers);
     }
 
@@ -708,6 +726,13 @@ final class DifferentialRevisionQuery
         $conn_r,
         'r.arcanistProjectPHID in (%Ls)',
         $this->arcanistProjectPHIDs);
+    }
+
+    if ($this->subscribers) {
+      $where[] = qsprintf(
+        $conn_r,
+        '(sub_rel_cc.objectPHID IS NOT NULL)
+          OR (sub_rel_reviewer.dst IS NOT NULL)');
     }
 
     switch ($this->status) {
@@ -889,16 +914,32 @@ final class DifferentialRevisionQuery
     assert_instances_of($revisions, 'DifferentialRevision');
     $relationships = queryfx_all(
       $conn_r,
-      'SELECT * FROM %T WHERE revisionID in (%Ld) ORDER BY sequence',
+      'SELECT * FROM %T WHERE revisionID in (%Ld)
+        AND relation != %s ORDER BY sequence',
       DifferentialRevision::RELATIONSHIP_TABLE,
-      mpull($revisions, 'getID'));
+      mpull($revisions, 'getID'),
+      DifferentialRevision::RELATION_REVIEWER);
     $relationships = igroup($relationships, 'revisionID');
+
+    $type_reviewer = PhabricatorEdgeConfig::TYPE_DREV_HAS_REVIEWER;
+    $edges = id(new PhabricatorEdgeQuery())
+      ->withSourcePHIDs(mpull($revisions, 'getPHID'))
+      ->withEdgeTypes(array($type_reviewer))
+      ->setOrder(PhabricatorEdgeQuery::ORDER_OLDEST_FIRST)
+      ->execute();
+
     foreach ($revisions as $revision) {
-      $revision->attachRelationships(
-        idx(
-          $relationships,
-          $revision->getID(),
-          array()));
+      $data = idx($relationships, $revision->getID(), array());
+      $revision_edges = $edges[$revision->getPHID()][$type_reviewer];
+      foreach ($revision_edges as $dst_phid => $edge_data) {
+        $data[] = array(
+          'relation' => DifferentialRevision::RELATION_REVIEWER,
+          'objectPHID' => $dst_phid,
+          'reasonPHID' => null,
+        );
+      }
+
+      $revision->attachRelationships($data);
     }
   }
 
@@ -996,11 +1037,11 @@ final class DifferentialRevisionQuery
       ->withSourcePHIDs(mpull($revisions, 'getPHID'))
       ->withEdgeTypes(array($edge_type))
       ->needEdgeData(true)
+      ->setOrder(PhabricatorEdgeQuery::ORDER_OLDEST_FIRST)
       ->execute();
 
     foreach ($revisions as $revision) {
       $revision_edges = $edges[$revision->getPHID()][$edge_type];
-
       $reviewers = array();
       foreach ($revision_edges as $user_phid => $edge) {
         $data = $edge['data'];
