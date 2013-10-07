@@ -1,8 +1,5 @@
 <?php
 
-/**
- * @group herald
- */
 final class HeraldDifferentialRevisionAdapter extends HeraldAdapter {
 
   protected $revision;
@@ -16,6 +13,7 @@ final class HeraldDifferentialRevisionAdapter extends HeraldAdapter {
   protected $remCCs = array();
   protected $emailPHIDs = array();
   protected $addReviewerPHIDs = array();
+  protected $blockingReviewerPHIDs = array();
 
   protected $repository;
   protected $affectedPackages;
@@ -113,6 +111,10 @@ final class HeraldDifferentialRevisionAdapter extends HeraldAdapter {
 
   public function getReviewersAddedByHerald() {
     return $this->addReviewerPHIDs;
+  }
+
+  public function getBlockingReviewersAddedByHerald() {
+    return $this->blockingReviewerPHIDs;
   }
 
   public function getPHID() {
@@ -346,6 +348,7 @@ final class HeraldDifferentialRevisionAdapter extends HeraldAdapter {
           self::ACTION_REMOVE_CC,
           self::ACTION_EMAIL,
           self::ACTION_ADD_REVIEWERS,
+          self::ACTION_ADD_BLOCKING_REVIEWERS,
           self::ACTION_NOTHING,
         );
       case HeraldRuleTypeConfig::RULE_TYPE_PERSONAL:
@@ -355,6 +358,7 @@ final class HeraldDifferentialRevisionAdapter extends HeraldAdapter {
           self::ACTION_EMAIL,
           self::ACTION_FLAG,
           self::ACTION_ADD_REVIEWERS,
+          self::ACTION_ADD_BLOCKING_REVIEWERS,
           self::ACTION_NOTHING,
         );
     }
@@ -452,6 +456,17 @@ final class HeraldDifferentialRevisionAdapter extends HeraldAdapter {
             $effect,
             true,
             pht('Added reviewers.'));
+          break;
+        case self::ACTION_ADD_BLOCKING_REVIEWERS:
+          // This adds reviewers normally, it just also marks them blocking.
+          foreach ($effect->getTarget() as $phid) {
+            $this->addReviewerPHIDs[$phid] = true;
+            $this->blockingReviewerPHIDs[$phid] = true;
+          }
+          $result[] = new HeraldApplyTranscript(
+            $effect,
+            true,
+            pht('Added blocking reviewers.'));
           break;
         default:
           throw new Exception("No rules to handle action '{$action}'.");

@@ -223,6 +223,7 @@ final class PhabricatorTypeaheadCommonDatasourceController
       $projs = id(new PhabricatorProjectQuery())
         ->setViewer($viewer)
         ->withStatus(PhabricatorProjectQuery::STATUS_OPEN)
+        ->needProfiles(true)
         ->execute();
       foreach ($projs as $proj) {
         $proj_result = id(new PhabricatorTypeaheadResult())
@@ -230,10 +231,10 @@ final class PhabricatorTypeaheadCommonDatasourceController
           ->setDisplayType("Project")
           ->setURI('/project/view/'.$proj->getID().'/')
           ->setPHID($proj->getPHID());
-        $prof = $proj->loadProfile();
-        if ($prof) {
-          $proj_result->setImageURI($prof->loadProfileImageURI());
-        }
+
+        $prof = $proj->getProfile();
+        $proj_result->setImageURI($prof->getProfileImageURI());
+
         $results[] = $proj_result;
       }
     }
