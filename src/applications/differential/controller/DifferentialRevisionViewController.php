@@ -91,9 +91,6 @@ final class DifferentialRevisionViewController extends DifferentialController {
     $aux_fields = $this->loadAuxiliaryFields($revision);
 
     $comments = $revision->loadComments();
-    $comments = array_merge(
-      $this->getImplicitComments($revision, reset($diffs)),
-      $comments);
 
     $all_changesets = $changesets;
     $inlines = $this->loadInlineComments(
@@ -111,22 +108,8 @@ final class DifferentialRevisionViewController extends DifferentialController {
       mpull($comments, 'getAuthorPHID'));
 
     foreach ($comments as $comment) {
-      $metadata = $comment->getMetadata();
-      $added_reviewers = idx(
-        $metadata,
-        DifferentialComment::METADATA_ADDED_REVIEWERS);
-      if ($added_reviewers) {
-        foreach ($added_reviewers as $phid) {
-          $object_phids[] = $phid;
-        }
-      }
-      $added_ccs = idx(
-        $metadata,
-        DifferentialComment::METADATA_ADDED_CCS);
-      if ($added_ccs) {
-        foreach ($added_ccs as $phid) {
-          $object_phids[] = $phid;
-        }
+      foreach ($comment->getRequiredHandlePHIDs() as $phid) {
+        $object_phids[] = $phid;
       }
     }
 
@@ -390,6 +373,15 @@ final class DifferentialRevisionViewController extends DifferentialController {
       $comment_form->setDraft($draft);
       $comment_form->setReviewers(mpull($reviewers, 'getFullName', 'getPHID'));
       $comment_form->setCCs(mpull($ccs, 'getFullName', 'getPHID'));
+
+      // TODO: This just makes the "Z" key work. Generalize this and remove
+      // it at some point.
+      $comment_form = phutil_tag(
+        'div',
+        array(
+          'class' => 'differential-add-comment-panel',
+        ),
+        $comment_form);
     }
 
     $pane_id = celerity_generate_unique_node_id();
@@ -403,16 +395,16 @@ final class DifferentialRevisionViewController extends DifferentialController {
     $page_pane = id(new DifferentialPrimaryPaneView())
       ->setID($pane_id)
       ->appendChild(array(
-        $comment_view->render(),
-        $diff_history->render(),
+        $comment_view,
+        $diff_history,
         $warning,
-        $local_view->render(),
-        $toc_view->render(),
+        $local_view,
+        $toc_view,
         $other_view,
-        $changeset_view->render(),
+        $changeset_view,
       ));
     if ($comment_form) {
-      $page_pane->appendChild($comment_form->render());
+      $page_pane->appendChild($comment_form);
     } else {
       // TODO: For now, just use this to get "Login to Comment".
       $page_pane->appendChild(
@@ -468,38 +460,6 @@ final class DifferentialRevisionViewController extends DifferentialController {
         'title' => $object_id.' '.$revision->getTitle(),
         'pageObjects' => array($revision->getPHID()),
       ));
-  }
-
-  private function getImplicitComments(
-    DifferentialRevision $revision,
-    DifferentialDiff $diff) {
-
-    $author_phid = nonempty(
-      $diff->getAuthorPHID(),
-      $revision->getAuthorPHID());
-
-    $template = new DifferentialComment();
-    $template->setAuthorPHID($author_phid);
-    $template->setRevisionID($revision->getID());
-    $template->setDateCreated($revision->getDateCreated());
-
-    $comments = array();
-
-    if (strlen($revision->getSummary())) {
-      $summary_comment = clone $template;
-      $summary_comment->setContent($revision->getSummary());
-      $summary_comment->setAction(DifferentialAction::ACTION_SUMMARIZE);
-      $comments[] = $summary_comment;
-    }
-
-    if (strlen($revision->getTestPlan())) {
-      $testplan_comment = clone $template;
-      $testplan_comment->setContent($revision->getTestPlan());
-      $testplan_comment->setAction(DifferentialAction::ACTION_TESTPLAN);
-      $comments[] = $testplan_comment;
-    }
-
-    return $comments;
   }
 
   private function getRevisionActions(DifferentialRevision $revision) {
