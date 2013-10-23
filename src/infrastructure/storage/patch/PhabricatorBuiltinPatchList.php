@@ -1692,6 +1692,18 @@ final class PhabricatorBuiltinPatchList extends PhabricatorSQLPatchList {
         'type' => 'sql',
         'name' => $this->getPatchPath('20131020.col1.sql'),
       ),
+      '20131020.pxaction.sql' => array(
+        'type' => 'sql',
+        'name' => $this->getPatchPath('20131020.pxaction.sql'),
+      ),
+      '20131020.pxactionmig.php' => array(
+        'type' => 'php',
+        'name' => $this->getPatchPath('20131020.pxactionmig.php'),
+      ),
+      '20131020.harbormaster.sql' => array(
+        'type' => 'sql',
+        'name' => $this->getPatchPath('20131020.harbormaster.sql'),
+      ),
     );
   }
 }
