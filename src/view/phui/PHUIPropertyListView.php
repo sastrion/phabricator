@@ -7,6 +7,10 @@ final class PHUIPropertyListView extends AphrontView {
   private $object;
   private $invokedWillRenderEvent;
   private $actionList;
+  private $classes = array();
+
+  const ICON_SUMMARY = 'pl-summary';
+  const ICON_TESTPLAN = 'pl-testplan';
 
   protected function canAppendChild() {
     return false;
@@ -19,6 +23,11 @@ final class PHUIPropertyListView extends AphrontView {
 
   public function setActionList(PhabricatorActionListView $list) {
     $this->actionList = $list;
+    return $this;
+  }
+
+  public function addClass($class) {
+    $this->classes[] = $class;
     return $this;
   }
 
@@ -49,10 +58,11 @@ final class PHUIPropertyListView extends AphrontView {
     return $this;
   }
 
-  public function addSectionHeader($name) {
+  public function addSectionHeader($name, $icon=null) {
     $this->parts[] = array(
       'type' => 'section',
       'name' => $name,
+      'icon' => $icon,
     );
     return $this;
   }
@@ -110,11 +120,13 @@ final class PHUIPropertyListView extends AphrontView {
           throw new Exception(pht("Unknown part type '%s'!", $type));
       }
     }
+    $this->classes[] = 'phui-property-list-section';
+    $classes = implode(' ', $this->classes);
 
     return phutil_tag(
       'div',
       array(
-        'class' => 'phui-property-list-section',
+        'class' => $classes,
       ),
       array(
         $items,
@@ -185,12 +197,25 @@ final class PHUIPropertyListView extends AphrontView {
   }
 
   private function renderSectionPart(array $part) {
+    $name = $part['name'];
+    if ($part['icon']) {
+      $icon = id(new PHUIIconView())
+        ->setSpriteSheet(PHUIIconView::SPRITE_STATUS)
+        ->setSpriteIcon($part['icon']);
+      $name = phutil_tag(
+        'span',
+        array(
+          'class' => 'phui-property-list-section-header-icon',
+        ),
+        array($icon, $name));
+    }
+
     return phutil_tag(
       'div',
       array(
         'class' => 'phui-property-list-section-header',
       ),
-      $part['name']);
+      $name);
   }
 
   private function renderTextPart(array $part) {
