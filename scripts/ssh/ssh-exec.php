@@ -38,8 +38,8 @@ try {
     throw new Exception("Invalid username.");
   }
 
-  if ($user->getIsDisabled()) {
-    throw new Exception("You have been exiled.");
+  if (!$user->isUserActivated()) {
+    throw new Exception(pht("Your account is not activated."));
   }
 
   if ($args->getArg('ssh-command')) {
@@ -61,7 +61,8 @@ try {
 
   $workflows = array(
     new ConduitSSHWorkflow(),
-
+    new DiffusionSSHSubversionServeWorkflow(),
+    new DiffusionSSHMercurialServeWorkflow(),
     new DiffusionSSHGitUploadPackWorkflow(),
     new DiffusionSSHGitReceivePackWorkflow(),
   );
