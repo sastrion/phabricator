@@ -74,10 +74,15 @@ abstract class PhabricatorController extends AphrontController {
       }
     }
 
-    if ($user->getIsDisabled() && $this->shouldRequireEnabledUser()) {
-      $disabled_user_controller = new PhabricatorDisabledUserController(
-        $request);
-      return $this->delegateToController($disabled_user_controller);
+    if ($this->shouldRequireEnabledUser()) {
+      if ($user->isLoggedIn() && !$user->getIsApproved()) {
+        $controller = new PhabricatorAuthNeedsApprovalController($request);
+        return $this->delegateToController($controller);
+      }
+      if ($user->getIsDisabled()) {
+        $controller = new PhabricatorDisabledUserController($request);
+        return $this->delegateToController($controller);
+      }
     }
 
     $event = new PhabricatorEvent(
