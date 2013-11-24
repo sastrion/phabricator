@@ -39,8 +39,7 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
 
   protected $versionControlSystem;
   protected $details = array();
-
-  private $sshKeyfile;
+  protected $credentialPHID;
 
   private $commitCount = self::ATTACHABLE;
   private $mostRecentCommit = self::ATTACHABLE;
@@ -155,12 +154,12 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
     return $this->getDetail('local-path');
   }
 
-  public function getSubversionBaseURI() {
+  public function getSubversionBaseURI($commit = null) {
     $subpath = $this->getDetail('svn-subpath');
     if (!strlen($subpath)) {
       $subpath = null;
     }
-    return $this->getSubversionPathURI($subpath);
+    return $this->getSubversionPathURI($subpath, $commit);
   }
 
   public function getSubversionPathURI($path = null, $commit = null) {
@@ -338,7 +337,7 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
     if ($this->shouldUseSSH()) {
       // NOTE: This is read by `bin/ssh-connect`, and tells it which credentials
       // to use.
-      $env['PHABRICATOR_SSH_TARGET'] = $this->getCallsign();
+      $env['PHABRICATOR_CREDENTIAL'] = $this->getCredentialPHID();
       switch ($this->getVersionControlSystem()) {
         case PhabricatorRepositoryType::REPOSITORY_TYPE_SVN:
           // Force SVN to use `bin/ssh-connect`.
@@ -366,31 +365,29 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
 
     switch ($this->getVersionControlSystem()) {
       case PhabricatorRepositoryType::REPOSITORY_TYPE_SVN:
-        if ($this->shouldUseHTTP()) {
-          $pattern =
-            "svn ".
-            "--non-interactive ".
-            "--no-auth-cache ".
-            "--trust-server-cert ".
-            "--username %P ".
-            "--password %P ".
-            $pattern;
-          array_unshift(
-            $args,
-            new PhutilOpaqueEnvelope($this->getDetail('http-login')),
-            new PhutilOpaqueEnvelope($this->getDetail('http-pass')));
-        } else if ($this->shouldUseSVNProtocol()) {
-          $pattern =
-            "svn ".
-            "--non-interactive ".
-            "--no-auth-cache ".
-            "--username %P ".
-            "--password %P ".
-            $pattern;
-          array_unshift(
-            $args,
-            new PhutilOpaqueEnvelope($this->getDetail('http-login')),
-            new PhutilOpaqueEnvelope($this->getDetail('http-pass')));
+        if ($this->shouldUseHTTP() || $this->shouldUseSVNProtocol()) {
+          $flags = array();
+          $flag_args = array();
+          $flags[] = '--non-interactive';
+          $flags[] = '--no-auth-cache';
+          if ($this->shouldUseHTTP()) {
+            $flags[] = '--trust-server-cert';
+          }
+
+          $credential_phid = $this->getCredentialPHID();
+          if ($credential_phid) {
+            $key = PassphrasePasswordKey::loadFromPHID(
+              $credential_phid,
+              PhabricatorUser::getOmnipotentUser());
+            $flags[] = '--username %P';
+            $flags[] = '--password %P';
+            $flag_args[] = $key->getUsernameEnvelope();
+            $flag_args[] = $key->getPasswordEnvelope();
+          }
+
+          $flags = implode(' ', $flags);
+          $pattern = "svn {$flags} {$pattern}";
+          $args = array_mergev(array($flag_args, $args));
         } else {
           $pattern = "svn --non-interactive {$pattern}";
         }
@@ -580,14 +577,10 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
     // Make sure we don't leak anything if this repo is using HTTP Basic Auth
     // with the credentials in the URI or something zany like that.
 
-    if ($uri instanceof PhutilGitURI) {
-      if (!$this->getDetail('show-user', false)) {
-        $uri->setUser(null);
-      }
-    } else {
-      if (!$this->getDetail('show-user', false)) {
-        $uri->setUser(null);
-      }
+    // If repository is not accessed over SSH we remove both username and
+    // password.
+    if (!$this->shouldUseSSH()) {
+      $uri->setUser(null);
       $uri->setPass(null);
     }
 
@@ -667,11 +660,7 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
 
     $protocol = $this->getRemoteProtocol();
     if ($this->isSSHProtocol($protocol)) {
-      $key = $this->getDetail('ssh-key');
-      $keyfile = $this->getDetail('ssh-keyfile');
-      if ($key || $keyfile) {
-        return true;
-      }
+      return true;
     }
 
     return false;
@@ -691,11 +680,7 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
     }
 
     $protocol = $this->getRemoteProtocol();
-    if ($protocol == 'http' || $protocol == 'https') {
-      return (bool)$this->getDetail('http-login');
-    } else {
-      return false;
-    }
+    return ($protocol == 'http' || $protocol == 'https');
   }
 
 
@@ -712,11 +697,7 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
     }
 
     $protocol = $this->getRemoteProtocol();
-    if ($protocol == 'svn') {
-      return (bool)$this->getDetail('http-login');
-    } else {
-      return false;
-    }
+    return ($protocol == 'svn');
   }
 
 
@@ -753,6 +734,12 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
         // note PhabricatorRepositoryAuditRequests and
         // PhabricatorRepositoryCommitData are deleted here too.
         $commit->delete();
+      }
+
+      $mirrors = id(new PhabricatorRepositoryMirror())
+        ->loadAllWhere('repositoryPHID = %s', $this->getPHID());
+      foreach ($mirrors as $mirror) {
+        $mirror->delete();
       }
 
       $conn_w = $this->establishConnection('w');
@@ -909,6 +896,17 @@ final class PhabricatorRepository extends PhabricatorRepositoryDAO
     return Filesystem::isDescendant($this->getLocalPath(), $default_path);
   }
 
+  public function canMirror() {
+    if (!$this->isHosted()) {
+      return false;
+    }
+
+    if ($this->isGit()) {
+      return true;
+    }
+
+    return false;
+  }
 
   public function writeStatusMessage(
     $status_type,
