@@ -37,6 +37,21 @@ final class DrydockPreallocatedHostBlueprintImplementation
     DrydockResource $resource,
     DrydockLease $lease) {
 
+    // Because preallocated resources are manually created, we should verify
+    // we have all the information we need.
+    PhutilTypeSpec::checkMap(
+      $resource->getAttributesForTypeSpec(
+        array('platform', 'host', 'port', 'credential', 'path')),
+      array(
+        'platform' => 'string',
+        'host' => 'string',
+        'port' => 'string', // Value is a string from the command line
+        'credential' => 'string',
+        'path' => 'string',
+      ));
+    $v_platform = $resource->getAttribute('platform');
+    $v_path = $resource->getAttribute('path');
+
     // Similar to DrydockLocalHostBlueprint, we create a folder
     // on the remote host that the lease can use.
 
@@ -46,18 +61,18 @@ final class DrydockPreallocatedHostBlueprintImplementation
     // the platform we're currently running on, not the platform we are
     // remoting to.
     $separator = '/';
-    if ($lease->getAttribute('platform') === 'windows') {
+    if ($v_platform === 'windows') {
       $separator = '\\';
     }
 
     // Clean up the directory path a little.
-    $base_path = rtrim($resource->getAttribute('path'), '/');
+    $base_path = rtrim($v_path, '/');
     $base_path = rtrim($base_path, '\\');
     $full_path = $base_path.$separator.$lease_id;
 
     $cmd = $lease->getInterface('command');
 
-    if ($lease->getAttribute('platform') !== 'windows') {
+    if ($v_platform !== 'windows') {
       $cmd->execx('mkdir %s', $full_path);
     } else {
       // Windows is terrible.  The mkdir command doesn't even support putting
@@ -88,9 +103,14 @@ final class DrydockPreallocatedHostBlueprintImplementation
           ->setConfiguration(array(
             'host' => $resource->getAttribute('host'),
             'port' => $resource->getAttribute('port'),
-            'user' => $resource->getAttribute('user'),
-            'ssh-keyfile' => $resource->getAttribute('ssh-keyfile'),
+            'credential' => $resource->getAttribute('credential'),
             'platform' => $resource->getAttribute('platform')));
+      case 'filesystem':
+        return id(new DrydockSFTPFilesystemInterface())
+          ->setConfiguration(array(
+            'host' => $resource->getAttribute('host'),
+            'port' => $resource->getAttribute('port'),
+            'credential' => $resource->getAttribute('credential')));
     }
 
     throw new Exception("No interface of type '{$type}'.");
