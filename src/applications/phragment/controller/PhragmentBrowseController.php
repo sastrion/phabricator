@@ -4,6 +4,10 @@ final class PhragmentBrowseController extends PhragmentController {
 
   private $dblob;
 
+  public function shouldAllowPublic() {
+    return true;
+  }
+
   public function willProcessRequest(array $data) {
     $this->dblob = idx($data, "dblob", "");
   }
@@ -24,11 +28,14 @@ final class PhragmentBrowseController extends PhragmentController {
     }
 
     $crumbs = $this->buildApplicationCrumbsWithPath($parents);
-    $crumbs->addAction(
-      id(new PHUIListItemView())
-        ->setName(pht('Create Fragment'))
-        ->setHref($this->getApplicationURI('/create/'.$path))
-        ->setIcon('create'));
+    if ($this->hasApplicationCapability(
+      PhragmentCapabilityCanCreate::CAPABILITY)) {
+      $crumbs->addAction(
+        id(new PHUIListItemView())
+          ->setName(pht('Create Fragment'))
+          ->setHref($this->getApplicationURI('/create/'.$path))
+          ->setIcon('create'));
+    }
 
     $current_box = $this->createCurrentFragmentView($current, false);
 
@@ -56,7 +63,7 @@ final class PhragmentBrowseController extends PhragmentController {
     foreach ($fragments as $fragment) {
       $item = id(new PHUIObjectItemView());
       $item->setHeader($fragment->getName());
-      $item->setHref($this->getApplicationURI('/browse/'.$fragment->getPath()));
+      $item->setHref($fragment->getURI());
       if (!$fragment->isDirectory()) {
         $item->addAttribute(pht(
           'Last Updated %s',
@@ -79,6 +86,7 @@ final class PhragmentBrowseController extends PhragmentController {
     return $this->buildApplicationPage(
       array(
         $crumbs,
+        $this->renderConfigurationWarningIfRequired(),
         $current_box,
         $list),
       array(

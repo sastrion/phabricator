@@ -94,6 +94,13 @@ final class HarbormasterBuild extends HarbormasterDAO
     return $this->assertAttached($this->buildPlan);
   }
 
+  public function isBuilding() {
+    return $this->getBuildStatus() === self::STATUS_PENDING ||
+      $this->getBuildStatus() === self::STATUS_WAITING ||
+      $this->getBuildStatus() === self::STATUS_BUILDING ||
+      $this->getCancelRequested();
+  }
+
   public function createLog(
     HarbormasterBuildTarget $build_target,
     $log_source,
@@ -176,9 +183,12 @@ final class HarbormasterBuild extends HarbormasterDAO
       $repo = $object->getRepository();
     }
 
-    $results['repository.callsign'] = $repo->getCallsign();
-    $results['repository.vcs'] = $repo->getVersionControlSystem();
-    $results['repository.uri'] = $repo->getPublicRemoteURI();
+    if ($repo) {
+      $results['repository.callsign'] = $repo->getCallsign();
+      $results['repository.vcs'] = $repo->getVersionControlSystem();
+      $results['repository.uri'] = $repo->getPublicRemoteURI();
+    }
+
     $results['step.timestamp'] = time();
     $results['build.id'] = $this->getID();
 

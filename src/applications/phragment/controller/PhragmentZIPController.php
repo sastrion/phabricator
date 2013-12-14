@@ -3,9 +3,17 @@
 final class PhragmentZIPController extends PhragmentController {
 
   private $dblob;
+  private $snapshot;
+
+  private $snapshotCache;
+
+  public function shouldAllowPublic() {
+    return true;
+  }
 
   public function willProcessRequest(array $data) {
     $this->dblob = idx($data, "dblob", "");
+    $this->snapshot = idx($data, "snapshot", null);
   }
 
   public function processRequest() {
@@ -17,6 +25,27 @@ final class PhragmentZIPController extends PhragmentController {
       return new Aphront404Response();
     }
     $fragment = idx($parents, count($parents) - 1, null);
+
+    if ($this->snapshot !== null) {
+      $snapshot = id(new PhragmentSnapshotQuery())
+        ->setViewer($viewer)
+        ->withPrimaryFragmentPHIDs(array($fragment->getPHID()))
+        ->withNames(array($this->snapshot))
+        ->executeOne();
+      if ($snapshot === null) {
+        return new Aphront404Response();
+      }
+
+      $cache = id(new PhragmentSnapshotChildQuery())
+        ->setViewer($viewer)
+        ->needFragmentVersions(true)
+        ->withSnapshotPHIDs(array($snapshot->getPHID()))
+        ->execute();
+      $this->snapshotCache = mpull(
+        $cache,
+        'getFragmentVersion',
+        'getFragmentPHID');
+    }
 
     $temp = new TempFile();
 
@@ -62,7 +91,9 @@ final class PhragmentZIPController extends PhragmentController {
     }
 
     foreach ($mappings as $path => $file) {
-      $zip->addFromString($path, $file->loadFileData());
+      if ($file !== null) {
+        $zip->addFromString($path, $file->loadFileData());
+      }
     }
     $zip->close();
 
@@ -78,36 +109,43 @@ final class PhragmentZIPController extends PhragmentController {
         'name' => $zip_name,
         'ttl' => time() + 60 * 60 * 24,
       ));
+
+    $unguarded = AphrontWriteGuard::beginScopedUnguardedWrites();
+      $file->attachToObject($viewer, $fragment->getPHID());
+    unset($unguarded);
+
+    $return = $fragment->getURI();
+    if ($request->getExists('return')) {
+      $return = $request->getStr('return');
+    }
+
     return id(new AphrontRedirectResponse())
-      ->setURI($file->getBestURI());
+      ->setURI($file->getDownloadURI($return));
   }
 
   /**
    * Returns a list of mappings like array('some/path.txt' => 'file PHID');
    */
   private function getFragmentMappings(PhragmentFragment $current, $base_path) {
-    $children = id(new PhragmentFragmentQuery())
-      ->setViewer($this->getRequest()->getUser())
-      ->needLatestVersion(true)
-      ->withLeadingPath($current->getPath().'/')
-      ->withDepths(array($current->getDepth() + 1))
-      ->execute();
+    $mappings = $current->getFragmentMappings(
+      $this->getRequest()->getUser(),
+      $base_path);
 
-    if (count($children) === 0) {
-      $path = substr($current->getPath(), strlen($base_path) + 1);
-      if ($current->getLatestVersion() === null) {
-        return array();
+    $result = array();
+    foreach ($mappings as $path => $fragment) {
+      $version = $this->getVersion($fragment);
+      if ($version !== null) {
+        $result[$path] = $version->getFilePHID();
       }
-      return array($path => $current->getLatestVersion()->getFilePHID());
+    }
+    return $result;
+  }
+
+  private function getVersion($fragment) {
+    if ($this->snapshot === null) {
+      return $fragment->getLatestVersion();
     } else {
-      $mappings = array();
-      foreach ($children as $child) {
-        $child_mappings = $this->getFragmentMappings($child, $base_path);
-        foreach ($child_mappings as $key => $value) {
-          $mappings[$key] = $value;
-        }
-      }
-      return $mappings;
+      return idx($this->snapshotCache, $fragment->getPHID(), null);
     }
   }
 

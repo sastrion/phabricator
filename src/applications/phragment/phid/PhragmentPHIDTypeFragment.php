@@ -34,7 +34,10 @@ final class PhragmentPHIDTypeFragment
     foreach ($handles as $phid => $handle) {
       $fragment = $objects[$phid];
 
-      $handle->setName($fragment->getID());
+      $handle->setName(pht(
+        "Fragment %s: %s",
+        $fragment->getID(),
+        $fragment->getName()));
       $handle->setURI($fragment->getURI());
     }
   }
