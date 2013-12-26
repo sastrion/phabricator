@@ -82,32 +82,29 @@ final class PhabricatorRepositoryPullEngine
           $this->executeSubversionCreate();
         }
       } else {
-        if ($repository->isHosted()) {
-          if ($is_git) {
-            $this->installGitHook();
-          } else if ($is_svn) {
-            $this->installSubversionHook();
-          } else if ($is_hg) {
-            $this->installMercurialHook();
-          } else {
-            $this->logPull(
-              pht(
-                "Repository '%s' is hosted, so Phabricator does not pull ".
-                "updates for it.",
-                $callsign));
-          }
-        } else {
+        if (!$repository->isHosted()) {
           $this->logPull(
             pht(
               "Updating the working copy for repository '%s'.",
               $callsign));
           if ($is_git) {
             $this->executeGitUpdate();
-          } else {
+          } else if ($is_hg) {
             $this->executeMercurialUpdate();
           }
         }
       }
+
+      if ($repository->isHosted()) {
+        if ($is_git) {
+          $this->installGitHook();
+        } else if ($is_svn) {
+          $this->installSubversionHook();
+        } else if ($is_hg) {
+          $this->installMercurialHook();
+        }
+      }
+
     } catch (Exception $ex) {
       $this->abortPull(
         pht('Pull of "%s" failed: %s', $callsign, $ex->getMessage()),
@@ -397,11 +394,21 @@ final class PhabricatorRepositoryPullEngine
 
     $data = array();
     $data[] = '[hooks]';
+
+    // This hook handles normal pushes.
     $data[] = csprintf(
       'pretxnchangegroup.phabricator = %s %s %s',
       $bin,
       $repository->getCallsign(),
       'pretxnchangegroup');
+
+    // This one handles creating bookmarks.
+    $data[] = csprintf(
+      'prepushkey.phabricator = %s %s %s',
+      $bin,
+      $repository->getCallsign(),
+      'prepushkey');
+
     $data[] = null;
 
     $data = implode("\n", $data);
