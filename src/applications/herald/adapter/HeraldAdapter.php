@@ -33,6 +33,9 @@ abstract class HeraldAdapter {
   const FIELD_DIFFERENTIAL_CCS       = 'differential-ccs';
   const FIELD_DIFFERENTIAL_ACCEPTED  = 'differential-accepted';
   const FIELD_IS_MERGE_COMMIT        = 'is-merge-commit';
+  const FIELD_BRANCHES               = 'branches';
+  const FIELD_AUTHOR_RAW             = 'author-raw';
+  const FIELD_COMMITTER_RAW          = 'committer-raw';
 
   const CONDITION_CONTAINS        = 'contains';
   const CONDITION_NOT_CONTAINS    = '!contains';
@@ -133,8 +136,20 @@ abstract class HeraldAdapter {
   }
 
   abstract public function getAdapterContentName();
+  abstract public function getAdapterContentDescription();
   abstract public function getAdapterApplicationClass();
   abstract public function getObject();
+
+  public function getAdapterSortKey() {
+    return sprintf(
+      '%08d%s',
+      $this->getAdapterSortOrder(),
+      $this->getAdapterContentName());
+  }
+
+  public function getAdapterSortOrder() {
+    return 1000;
+  }
 
 
 /* -(  Fields  )------------------------------------------------------------- */
@@ -178,6 +193,9 @@ abstract class HeraldAdapter {
       self::FIELD_DIFFERENTIAL_ACCEPTED
         => pht('Accepted Differential revision'),
       self::FIELD_IS_MERGE_COMMIT => pht('Commit is a merge'),
+      self::FIELD_BRANCHES => pht('Commit\'s branches'),
+      self::FIELD_AUTHOR_RAW => pht('Raw author name'),
+      self::FIELD_COMMITTER_RAW => pht('Raw committer name'),
     );
   }
 
@@ -216,6 +234,8 @@ abstract class HeraldAdapter {
     switch ($field) {
       case self::FIELD_TITLE:
       case self::FIELD_BODY:
+      case self::FIELD_COMMITTER_RAW:
+      case self::FIELD_AUTHOR_RAW:
         return array(
           self::CONDITION_CONTAINS,
           self::CONDITION_NOT_CONTAINS,
@@ -255,6 +275,7 @@ abstract class HeraldAdapter {
           self::CONDITION_NOT_EXISTS,
         );
       case self::FIELD_DIFF_FILE:
+      case self::FIELD_BRANCHES:
         return array(
           self::CONDITION_CONTAINS,
           self::CONDITION_REGEXP,
@@ -805,6 +826,7 @@ abstract class HeraldAdapter {
       $adapters = id(new PhutilSymbolLoader())
         ->setAncestorClass(__CLASS__)
         ->loadObjects();
+      $adapters = msort($adapters, 'getAdapterSortKey');
     }
     return $adapters;
   }
@@ -837,7 +859,6 @@ abstract class HeraldAdapter {
       $map[$type] = $name;
     }
 
-    asort($map);
     return $map;
   }
 
