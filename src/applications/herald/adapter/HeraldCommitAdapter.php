@@ -49,6 +49,36 @@ final class HeraldCommitAdapter extends HeraldAdapter {
       "and run build plans.");
   }
 
+  public function supportsRuleType($rule_type) {
+    switch ($rule_type) {
+      case HeraldRuleTypeConfig::RULE_TYPE_GLOBAL:
+      case HeraldRuleTypeConfig::RULE_TYPE_PERSONAL:
+      case HeraldRuleTypeConfig::RULE_TYPE_OBJECT:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  public function canTriggerOnObject($object) {
+    if ($object instanceof PhabricatorRepository) {
+      return true;
+    }
+    return false;
+  }
+
+  public function getTriggerObjectPHIDs() {
+    return array(
+      $this->repository->getPHID(),
+      $this->getPHID(),
+    );
+  }
+
+  public function explainValidTriggerObjects() {
+    return pht(
+      'This rule can trigger for **repositories**.');
+  }
+
   public function getFieldNameMap() {
     return array(
       self::FIELD_NEED_AUDIT_FOR_PACKAGE =>
@@ -100,6 +130,7 @@ final class HeraldCommitAdapter extends HeraldAdapter {
   public function getActions($rule_type) {
     switch ($rule_type) {
       case HeraldRuleTypeConfig::RULE_TYPE_GLOBAL:
+      case HeraldRuleTypeConfig::RULE_TYPE_OBJECT:
         return array(
           self::ACTION_ADD_CC,
           self::ACTION_EMAIL,

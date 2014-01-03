@@ -44,6 +44,36 @@ final class HeraldPreCommitRefAdapter extends HeraldAdapter {
       "Hook rules can block changes.");
   }
 
+  public function supportsRuleType($rule_type) {
+    switch ($rule_type) {
+      case HeraldRuleTypeConfig::RULE_TYPE_GLOBAL:
+      case HeraldRuleTypeConfig::RULE_TYPE_OBJECT:
+        return true;
+      case HeraldRuleTypeConfig::RULE_TYPE_PERSONAL:
+      default:
+        return false;
+    }
+  }
+
+  public function canTriggerOnObject($object) {
+    if ($object instanceof PhabricatorRepository) {
+      return true;
+    }
+    return false;
+  }
+
+  public function explainValidTriggerObjects() {
+    return pht(
+      'This rule can trigger for **repositories**.');
+  }
+
+  public function getTriggerObjectPHIDs() {
+    return array(
+      $this->hookEngine->getRepository()->getPHID(),
+      $this->getPHID(),
+    );
+  }
+
   public function getFieldNameMap() {
     return array(
       self::FIELD_REF_TYPE => pht('Ref type'),
@@ -92,6 +122,7 @@ final class HeraldPreCommitRefAdapter extends HeraldAdapter {
   public function getActions($rule_type) {
     switch ($rule_type) {
       case HeraldRuleTypeConfig::RULE_TYPE_GLOBAL:
+      case HeraldRuleTypeConfig::RULE_TYPE_OBJECT:
         return array(
           self::ACTION_BLOCK,
           self::ACTION_NOTHING
