@@ -21,8 +21,14 @@ final class PhabricatorRepositoryQuery
   const ORDER_NAME = 'order-name';
   private $order = self::ORDER_CREATED;
 
+  const HOSTED_PHABRICATOR = 'hosted-phab';
+  const HOSTED_REMOTE = 'hosted-remote';
+  const HOSTED_ALL = 'hosted-all';
+  private $hosted = self::HOSTED_ALL;
+
   private $needMostRecentCommits;
   private $needCommitCounts;
+  private $needProjectPHIDs;
 
   public function withIDs(array $ids) {
     $this->ids = $ids;
@@ -41,6 +47,11 @@ final class PhabricatorRepositoryQuery
 
   public function withStatus($status) {
     $this->status = $status;
+    return $this;
+  }
+
+  public function withHosted($hosted) {
+    $this->hosted = $hosted;
     return $this;
   }
 
@@ -66,6 +77,11 @@ final class PhabricatorRepositoryQuery
 
   public function needMostRecentCommits($need_commits) {
     $this->needMostRecentCommits = $need_commits;
+    return $this;
+  }
+
+  public function needProjectPHIDs($need_phids) {
+    $this->needProjectPHIDs = $need_phids;
     return $this;
   }
 
@@ -116,7 +132,6 @@ final class PhabricatorRepositoryQuery
       }
     }
 
-
     return $repositories;
   }
 
@@ -142,6 +157,45 @@ final class PhabricatorRepositoryQuery
           break;
         default:
           throw new Exception("Unknown status '{$status}'!");
+      }
+
+      $hosted = $this->hosted;
+      switch ($hosted) {
+        case self::HOSTED_PHABRICATOR:
+          if (!$repo->isHosted()) {
+            unset($repositories[$key]);
+          }
+          break;
+        case self::HOSTED_REMOTE:
+          if ($repo->isHosted()) {
+            unset($repositories[$key]);
+          }
+          break;
+        case self::HOSTED_ALL:
+          break;
+        default:
+          throw new Exception("Uknown hosted failed '${hosted}'!");
+      }
+    }
+
+    return $repositories;
+  }
+
+  public function didFilterPage(array $repositories) {
+    if ($this->needProjectPHIDs) {
+      $type_project = PhabricatorEdgeConfig::TYPE_OBJECT_HAS_PROJECT;
+
+      $edge_query = id(new PhabricatorEdgeQuery())
+        ->withSourcePHIDs(mpull($repositories, 'getPHID'))
+        ->withEdgeTypes(array($type_project));
+      $edge_query->execute();
+
+      foreach ($repositories as $repository) {
+        $project_phids = $edge_query->getDestinationPHIDs(
+          array(
+            $repository->getPHID(),
+          ));
+        $repository->attachProjectPHIDs($project_phids);
       }
     }
 

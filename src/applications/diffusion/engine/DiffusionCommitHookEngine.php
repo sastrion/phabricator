@@ -19,6 +19,7 @@ final class DiffusionCommitHookEngine extends Phobject {
   private $viewer;
   private $repository;
   private $stdin;
+  private $originalArgv;
   private $subversionTransaction;
   private $subversionRepository;
   private $remoteAddress;
@@ -84,6 +85,15 @@ final class DiffusionCommitHookEngine extends Phobject {
     return $this->stdin;
   }
 
+  public function setOriginalArgv(array $original_argv) {
+    $this->originalArgv = $original_argv;
+    return $this;
+  }
+
+  public function getOriginalArgv() {
+    return $this->originalArgv;
+  }
+
   public function setRepository(PhabricatorRepository $repository) {
     $this->repository = $repository;
     return $this;
@@ -141,7 +151,8 @@ final class DiffusionCommitHookEngine extends Phobject {
 
       $this->applyHeraldContentRules($content_updates, $all_updates);
 
-      // TODO: Fire external hooks.
+      // Run custom scripts in `hook.d/` directories.
+      $this->applyCustomHooks($all_updates);
 
       // If we make it this far, we're accepting these changes. Mark all the
       // logs as accepted.
@@ -551,6 +562,74 @@ final class DiffusionCommitHookEngine extends Phobject {
     return $content_updates;
   }
 
+/* -(  Custom  )------------------------------------------------------------- */
+
+  private function applyCustomHooks(array $updates) {
+    $args = $this->getOriginalArgv();
+    $stdin = $this->getStdin();
+    $console = PhutilConsole::getConsole();
+
+    $env = array(
+      'PHABRICATOR_REPOSITORY' => $this->getRepository()->getCallsign(),
+      self::ENV_USER => $this->getViewer()->getUsername(),
+      self::ENV_REMOTE_PROTOCOL => $this->getRemoteProtocol(),
+      self::ENV_REMOTE_ADDRESS => $this->getRemoteAddress(),
+    );
+
+    $directories = $this->getRepository()->getHookDirectories();
+    foreach ($directories as $directory) {
+      $hooks = $this->getExecutablesInDirectory($directory);
+      sort($hooks);
+      foreach ($hooks as $hook) {
+        // NOTE: We're explicitly running the hooks in sequential order to
+        // make this more predictable.
+        $future = id(new ExecFuture('%s %Ls', $hook, $args))
+          ->setEnv($env, $wipe_process_env = false)
+          ->write($stdin);
+
+        list($err, $stdout, $stderr) = $future->resolve();
+        if (!$err) {
+          // This hook ran OK, but echo its output in case there was something
+          // informative.
+          $console->writeOut("%s", $stdout);
+          $console->writeErr("%s", $stderr);
+          continue;
+        }
+
+        // Mark everything as rejected by this hook.
+        foreach ($updates as $update) {
+          $update->setRejectCode(
+            PhabricatorRepositoryPushLog::REJECT_EXTERNAL);
+          $update->setRejectDetails(basename($hook));
+        }
+
+        throw new DiffusionCommitHookRejectException(
+          pht(
+            "This push was rejected by custom hook script '%s':\n\n%s%s",
+            basename($hook),
+            $stdout,
+            $stderr));
+      }
+    }
+  }
+
+  private function getExecutablesInDirectory($directory) {
+    $executables = array();
+
+    if (!Filesystem::pathExists($directory)) {
+      return $executables;
+    }
+
+    foreach (Filesystem::listDirectory($directory) as $path) {
+      $full_path = $directory.DIRECTORY_SEPARATOR.$path;
+      if (is_executable($full_path)) {
+        $executables[] = $full_path;
+      }
+    }
+
+    return $executables;
+  }
+
 
 /* -(  Mercurial  )---------------------------------------------------------- */
 
@@ -925,6 +1004,9 @@ final class DiffusionCommitHookEngine extends Phobject {
   }
 
   public function loadChangesetsForCommit($identifier) {
+    $byte_limit = HeraldCommitAdapter::getEnormousByteLimit();
+    $time_limit = HeraldCommitAdapter::getEnormousTimeLimit();
+
     $vcs = $this->getRepository()->getVersionControlSystem();
     switch ($vcs) {
       case PhabricatorRepositoryType::REPOSITORY_TYPE_GIT:
@@ -936,8 +1018,10 @@ final class DiffusionCommitHookEngine extends Phobject {
             'user' => $this->getViewer(),
             'commit' => $identifier,
           ));
+
         $raw_diff = DiffusionRawDiffQuery::newFromDiffusionRequest($drequest)
-          ->setTimeout(5 * 60)
+          ->setTimeout($time_limit)
+          ->setByteLimit($byte_limit)
           ->setLinesOfContext(0)
           ->loadRawDiff();
         break;
@@ -948,13 +1032,27 @@ final class DiffusionCommitHookEngine extends Phobject {
         // the "--diff-cmd" flag.
 
         // For subversion, we need to use `svnlook`.
-        list($raw_diff) = execx(
+        $future = new ExecFuture(
           'svnlook diff -t %s %s',
           $this->subversionTransaction,
           $this->subversionRepository);
+
+        $future->setTimeout($time_limit);
+        $future->setStdoutSizeLimit($byte_limit);
+        $future->setStderrSizeLimit($byte_limit);
+
+        list($raw_diff) = $future->resolvex();
         break;
       default:
         throw new Exception(pht("Unknown VCS '%s!'", $vcs));
+    }
+
+    if (strlen($raw_diff) >= $byte_limit) {
+      throw new Exception(
+        pht(
+          'The raw text of this change is enormous (larger than %d '.
+          'bytes). Herald can not process it.',
+          $byte_limit));
     }
 
     $parser = new ArcanistDiffParser();

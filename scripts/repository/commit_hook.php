@@ -13,15 +13,16 @@ $engine = new DiffusionCommitHookEngine();
 $repository = id(new PhabricatorRepositoryQuery())
   ->setViewer(PhabricatorUser::getOmnipotentUser())
   ->withCallsigns(array($argv[1]))
+  ->needProjectPHIDs(true)
   ->executeOne();
 
 if (!$repository) {
-  throw new Exception(pht('No such repository "%s"!', $callsign));
+  throw new Exception(pht('No such repository "%s"!', $argv[1]));
 }
 
 if (!$repository->isHosted()) {
   // This should be redundant, but double check just in case.
-  throw new Exception(pht('Repository "%s" is not hosted!', $callsign));
+  throw new Exception(pht('Repository "%s" is not hosted!', $argv[1]));
 }
 
 $engine->setRepository($repository);
@@ -87,6 +88,7 @@ if ($repository->isHg()) {
 }
 
 $engine->setStdin($stdin);
+$engine->setOriginalArgv(array_slice($argv, 2));
 
 $remote_address = getenv(DiffusionCommitHookEngine::ENV_REMOTE_ADDRESS);
 if (strlen($remote_address)) {

@@ -18,7 +18,9 @@ abstract class HeraldAdapter {
   const FIELD_DIFF_CONTENT           = 'diff-content';
   const FIELD_DIFF_ADDED_CONTENT     = 'diff-added-content';
   const FIELD_DIFF_REMOVED_CONTENT   = 'diff-removed-content';
+  const FIELD_DIFF_ENORMOUS          = 'diff-enormous';
   const FIELD_REPOSITORY             = 'repository';
+  const FIELD_REPOSITORY_PROJECTS    = 'repository-projects';
   const FIELD_RULE                   = 'rule';
   const FIELD_AFFECTED_PACKAGE       = 'affected-package';
   const FIELD_AFFECTED_PACKAGE_OWNER = 'affected-package-owner';
@@ -192,7 +194,9 @@ abstract class HeraldAdapter {
       self::FIELD_DIFF_CONTENT => pht('Any changed file content'),
       self::FIELD_DIFF_ADDED_CONTENT => pht('Any added file content'),
       self::FIELD_DIFF_REMOVED_CONTENT => pht('Any removed file content'),
+      self::FIELD_DIFF_ENORMOUS => pht('Change is enormous'),
       self::FIELD_REPOSITORY => pht('Repository'),
+      self::FIELD_REPOSITORY_PROJECTS => pht('Repository\'s projects'),
       self::FIELD_RULE => pht('Another Herald rule'),
       self::FIELD_AFFECTED_PACKAGE => pht('Any affected package'),
       self::FIELD_AFFECTED_PACKAGE_OWNER =>
@@ -283,6 +287,7 @@ abstract class HeraldAdapter {
       case self::FIELD_AFFECTED_PACKAGE:
       case self::FIELD_AFFECTED_PACKAGE_OWNER:
       case self::FIELD_PUSHER_PROJECTS:
+      case self::FIELD_REPOSITORY_PROJECTS:
         return array(
           self::CONDITION_INCLUDE_ALL,
           self::CONDITION_INCLUDE_ANY,
@@ -339,6 +344,7 @@ abstract class HeraldAdapter {
           self::CONDITION_NOT_EXISTS,
         );
       case self::FIELD_IS_MERGE_COMMIT:
+      case self::FIELD_DIFF_ENORMOUS:
         return array(
           self::CONDITION_IS_TRUE,
           self::CONDITION_IS_FALSE,
@@ -601,7 +607,7 @@ abstract class HeraldAdapter {
           self::ACTION_ADD_PROJECTS => pht('Add projects'),
           self::ACTION_ADD_REVIEWERS => pht('Add reviewers'),
           self::ACTION_ADD_BLOCKING_REVIEWERS => pht('Add blocking reviewers'),
-          self::ACTION_APPLY_BUILD_PLANS => pht('Apply build plans'),
+          self::ACTION_APPLY_BUILD_PLANS => pht('Run build plans'),
           self::ACTION_BLOCK => pht('Block change with message'),
         );
       case HeraldRuleTypeConfig::RULE_TYPE_PERSONAL:
@@ -713,6 +719,7 @@ abstract class HeraldAdapter {
           case self::FIELD_AUTHOR_PROJECTS:
           case self::FIELD_PUSHER_PROJECTS:
           case self::FIELD_PROJECTS:
+          case self::FIELD_REPOSITORY_PROJECTS:
             return self::VALUE_PROJECT;
           case self::FIELD_REVIEWERS:
             return self::VALUE_USER_OR_PROJECT;

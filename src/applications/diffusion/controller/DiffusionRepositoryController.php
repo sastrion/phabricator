@@ -123,13 +123,11 @@ final class DiffusionRepositoryController extends DiffusionController {
 
     if ($readme) {
       $box = new PHUIBoxView();
-      $box->setShadow(true);
       $box->appendChild($readme);
       $box->addPadding(PHUI::PADDING_LARGE);
 
-      $panel = new AphrontPanelView();
-      $panel->setHeader(pht('README'));
-      $panel->setNoBackground();
+      $panel = new PHUIObjectBoxView();
+      $panel->setHeaderText(pht('README'));
       $panel->appendChild($box);
       $content[] = $panel;
     }
@@ -164,6 +162,16 @@ final class DiffusionRepositoryController extends DiffusionController {
     $view = id(new PHUIPropertyListView())
       ->setUser($user);
     $view->addProperty(pht('Callsign'), $repository->getCallsign());
+
+    $project_phids = PhabricatorEdgeQuery::loadDestinationPHIDs(
+      $repository->getPHID(),
+      PhabricatorEdgeConfig::TYPE_OBJECT_HAS_PROJECT);
+    if ($project_phids) {
+      $this->loadHandles($project_phids);
+      $view->addProperty(
+        pht('Projects'),
+        $this->renderHandlesForPHIDs($project_phids));
+    }
 
     if ($repository->isHosted()) {
       $serve_off = PhabricatorRepository::SERVE_OFF;
@@ -278,26 +286,29 @@ final class DiffusionRepositoryController extends DiffusionController {
       ->setBranches($branches)
       ->setCommits($commits);
 
-    $panel = id(new AphrontPanelView())
-      ->setHeader(pht('Branches'))
-      ->setNoBackground();
+    $panel = new PHUIObjectBoxView();
+    $header = new PHUIHeaderView();
+    $header->setHeader(pht('Branches'));
 
     if ($more_branches) {
-      $panel->setCaption(pht('Showing %d branches.', $limit));
+      $header->setSubHeader(pht('Showing %d branches.', $limit));
     }
 
-    $panel->addButton(
-      phutil_tag(
-        'a',
-        array(
-          'href' => $drequest->generateURI(
+    $icon = id(new PHUIIconView())
+      ->setSpriteSheet(PHUIIconView::SPRITE_ICONS)
+      ->setSpriteIcon('fork');
+
+    $button = new PHUIButtonView();
+    $button->setText(pht("Show All Branches"));
+    $button->setTag('a');
+    $button->setIcon($icon);
+    $button->setHref($drequest->generateURI(
             array(
               'action' => 'branches',
-            )),
-          'class' => 'grey button',
-        ),
-        pht("Show All Branches \xC2\xBB")));
+            )));
 
+    $header->addActionLink($button);
+    $panel->setHeader($header);
     $panel->appendChild($table);
 
     return $panel;
@@ -449,22 +460,27 @@ final class DiffusionRepositoryController extends DiffusionController {
     }
 
     $history_table->setIsHead(true);
-
     $callsign = $drequest->getRepository()->getCallsign();
-    $all = phutil_tag(
-      'a',
-      array(
-        'href' => $drequest->generateURI(
-          array(
-            'action' => 'history',
-          )),
-      ),
-      pht('View Full Commit History'));
 
-    $panel = new AphrontPanelView();
-    $panel->setHeader(pht("Recent Commits &middot; %s", $all));
+    $icon = id(new PHUIIconView())
+      ->setSpriteSheet(PHUIIconView::SPRITE_ICONS)
+      ->setSpriteIcon('transcript');
+
+    $button = id(new PHUIButtonView())
+      ->setText(pht('View Full History'))
+      ->setHref($drequest->generateURI(
+        array(
+          'action' => 'history',
+        )))
+      ->setTag('a')
+      ->setIcon($icon);
+
+    $panel = new PHUIObjectBoxView();
+    $header = id(new PHUIHeaderView())
+      ->setHeader(pht('Recent Commits'))
+      ->addActionLink($button);
+    $panel->setHeader($header);
     $panel->appendChild($history_table);
-    $panel->setNoBackground();
 
     return $panel;
   }
@@ -503,14 +519,23 @@ final class DiffusionRepositoryController extends DiffusionController {
 
     $browse_uri = $drequest->generateURI(array('action' => 'browse'));
 
-    $browse_panel = new AphrontPanelView();
-    $browse_panel->setHeader(
-      phutil_tag(
-        'a',
-        array('href' => $browse_uri),
-        pht('Browse Repository')));
+    $browse_panel = new PHUIObjectBoxView();
+    $header = id(new PHUIHeaderView())
+      ->setHeader(pht('Repository'));
+
+    $icon = id(new PHUIIconView())
+      ->setSpriteSheet(PHUIIconView::SPRITE_ICONS)
+      ->setSpriteIcon('data');
+
+    $button = new PHUIButtonView();
+    $button->setText(pht('Browse Repository'));
+    $button->setTag('a');
+    $button->setIcon($icon);
+    $button->setHref($browse_uri);
+
+    $header->addActionLink($button);
+    $browse_panel->setHeader($header);
     $browse_panel->appendChild($browse_table);
-    $browse_panel->setNoBackground();
 
     return $browse_panel;
   }
