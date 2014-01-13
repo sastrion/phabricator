@@ -54,16 +54,38 @@ final class PhabricatorProjectBoardController
       ->execute();
     $tasks = mpull($tasks, null, 'getPHID');
 
+    $edge_type = PhabricatorEdgeConfig::TYPE_OBJECT_HAS_COLUMN;
+    $edge_query = id(new PhabricatorEdgeQuery())
+      ->withSourcePHIDs(mpull($tasks, 'getPHID'))
+      ->withEdgeTypes(array($edge_type))
+      ->withDestinationPHIDs(mpull($columns, 'getPHID'));
+    $edge_query->execute();
+
     $task_map = array();
     $default_phid = $columns[0]->getPHID();
-
     foreach ($tasks as $task) {
-      $task_map[$default_phid][] = $task->getPHID();
+      $task_phid = $task->getPHID();
+      $column_phids = $edge_query->getDestinationPHIDs(array($task_phid));
+
+      $column_phid = head($column_phids);
+      $column_phid = nonempty($column_phid, $default_phid);
+
+      $task_map[$column_phid][] = $task_phid;
     }
+
+    $board_id = celerity_generate_unique_node_id();
 
     $board = id(new PHUIWorkboardView())
       ->setUser($viewer)
-      ->setFluidishLayout(true);
+      ->setFluidishLayout(true)
+      ->setID($board_id);
+
+    $this->initBehavior(
+      'project-boards',
+      array(
+        'boardID' => $board_id,
+        'moveURI' => $this->getApplicationURI('move/'.$project->getID().'/'),
+      ));
 
     foreach ($columns as $column) {
       $panel = id(new PHUIWorkpanelView())
@@ -74,12 +96,22 @@ final class PhabricatorProjectBoardController
       $cards = id(new PHUIObjectItemListView())
         ->setUser($viewer)
         ->setCards(true)
-        ->setFlush(true);
+        ->setFlush(true)
+        ->setAllowEmptyList(true)
+        ->addSigil('project-column')
+        ->setMetadata(
+          array(
+            'columnPHID' => $column->getPHID(),
+          ));
       $task_phids = idx($task_map, $column->getPHID(), array());
       foreach (array_select_keys($tasks, $task_phids) as $task) {
         $cards->addItem($this->renderTaskCard($task));
       }
       $panel->setCards($cards);
+
+      if (!$task_phids) {
+        $cards->addClass('project-column-empty');
+      }
 
       $board->addPanel($panel);
     }
@@ -148,6 +180,11 @@ final class PhabricatorProjectBoardController
       ->setHeader($task->getTitle())
       ->setGrippable($can_edit)
       ->setHref('/T'.$task->getID())
+      ->addSigil('project-card')
+      ->setMetadata(
+        array(
+          'objectPHID' => $task->getPHID(),
+        ))
       ->addAction(
         id(new PHUIListItemView())
           ->setName(pht('Edit'))
