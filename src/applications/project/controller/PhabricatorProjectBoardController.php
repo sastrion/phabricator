@@ -30,28 +30,21 @@ final class PhabricatorProjectBoardController
       ->withProjectPHIDs(array($project->getPHID()))
       ->execute();
 
-    // TODO: Completely making this part up.
-    $columns[] = id(new PhabricatorProjectColumn())
-      ->setName('Backlog')
-      ->setPHID(0)
-      ->setSequence(0);
+    $columns = mpull($columns, null, 'getSequence');
 
-    $columns[] = id(new PhabricatorProjectColumn())
-      ->setName('Assigned')
-      ->setPHID(1)
-      ->setSequence(1);
+    // If there's no default column, create one now.
+    if (empty($columns[0])) {
+      $unguarded = AphrontWriteGuard::beginScopedUnguardedWrites();
+        $column = PhabricatorProjectColumn::initializeNewColumn($viewer)
+          ->setSequence(0)
+          ->setProjectPHID($project->getPHID())
+          ->save();
+        $column->attachProject($project);
+        $columns[0] = $column;
+      unset($unguarded);
+    }
 
-    $columns[] = id(new PhabricatorProjectColumn())
-      ->setName('In Progress')
-      ->setPHID(2)
-      ->setSequence(2);
-
-    $columns[] = id(new PhabricatorProjectColumn())
-      ->setName('Completed')
-      ->setPHID(3)
-      ->setSequence(3);
-
-    msort($columns, 'getSequence');
+    ksort($columns);
 
     $tasks = id(new ManiphestTaskQuery())
       ->setViewer($viewer)
@@ -61,10 +54,11 @@ final class PhabricatorProjectBoardController
       ->execute();
     $tasks = mpull($tasks, null, 'getPHID');
 
-    // TODO: This is also made up.
     $task_map = array();
+    $default_phid = $columns[0]->getPHID();
+
     foreach ($tasks as $task) {
-      $task_map[mt_rand(0, 3)][] = $task->getPHID();
+      $task_map[$default_phid][] = $task->getPHID();
     }
 
     $board = id(new PHUIWorkboardView())
@@ -73,7 +67,9 @@ final class PhabricatorProjectBoardController
 
     foreach ($columns as $column) {
       $panel = id(new PHUIWorkpanelView())
-        ->setHeader($column->getName());
+        ->setHeader($column->getDisplayName())
+        ->setHeaderColor($column->getHeaderColor())
+        ->setEditURI('edit/'.$column->getID().'/');
 
       $cards = id(new PHUIObjectItemListView())
         ->setUser($viewer)
@@ -89,6 +85,15 @@ final class PhabricatorProjectBoardController
     }
 
     $crumbs = $this->buildApplicationCrumbs();
+    $crumbs->addTextCrumb(
+      $project->getName(),
+      $this->getApplicationURI('view/'.$project->getID().'/'));
+    $crumbs->addTextCrumb(pht('Board'));
+
+    $can_edit = PhabricatorPolicyFilter::hasCapability(
+      $viewer,
+      $project,
+      PhabricatorPolicyCapability::CAN_EDIT);
 
     $actions = id(new PhabricatorActionListView())
       ->setUser($viewer)
@@ -96,7 +101,9 @@ final class PhabricatorProjectBoardController
         id(new PhabricatorActionView())
           ->setName(pht('Add Column/Milestone/Sprint'))
           ->setHref($this->getApplicationURI('board/'.$this->id.'/edit/'))
-          ->setIcon('create'));
+          ->setIcon('create')
+          ->setDisabled(!$can_edit)
+          ->setWorkflow(!$can_edit));
 
     $plist = id(new PHUIPropertyListView());
     // TODO: Need this to get actions to render.
@@ -118,7 +125,7 @@ final class PhabricatorProjectBoardController
         $board_box,
       ),
       array(
-        'title' => pht('Board'),
+        'title' => pht('%s Board', $project->getName()),
         'device' => true,
       ));
   }
