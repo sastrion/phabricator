@@ -4,9 +4,21 @@ final class PhabricatorAuthSessionQuery
   extends PhabricatorCursorPagedPolicyAwareQuery {
 
   private $identityPHIDs;
+  private $sessionKeys;
+  private $sessionTypes;
 
   public function withIdentityPHIDs(array $identity_phids) {
     $this->identityPHIDs = $identity_phids;
+    return $this;
+  }
+
+  public function withSessionKeys(array $keys) {
+    $this->sessionKeys = $keys;
+    return $this;
+  }
+
+  public function withSessionTypes(array $types) {
+    $this->sessionTypes = $types;
     return $this;
   }
 
@@ -57,13 +69,27 @@ final class PhabricatorAuthSessionQuery
         $this->identityPHIDs);
     }
 
+    if ($this->sessionKeys) {
+      $hashes = array();
+      foreach ($this->sessionKeys as $session_key) {
+        $hashes[] = PhabricatorHash::digest($session_key);
+      }
+      $where[] = qsprintf(
+        $conn_r,
+        'sessionKey IN (%Ls)',
+        $hashes);
+    }
+
+    if ($this->sessionTypes) {
+      $where[] = qsprintf(
+        $conn_r,
+        'type IN (%Ls)',
+        $this->sessionTypes);
+    }
+
     $where[] = $this->buildPagingClause($conn_r);
 
     return $this->formatWhereClause($where);
-  }
-
-  public function getPagingColumn() {
-    return 'sessionKey';
   }
 
   public function getQueryApplicationClass() {

@@ -3,16 +3,19 @@
 final class PhabricatorAuthSession extends PhabricatorAuthDAO
   implements PhabricatorPolicyInterface {
 
+  const TYPE_WEB      = 'web';
+  const TYPE_CONDUIT  = 'conduit';
+
   protected $userPHID;
   protected $type;
   protected $sessionKey;
   protected $sessionStart;
+  protected $sessionExpires;
 
   private $identityObject = self::ATTACHABLE;
 
   public function getConfiguration() {
     return array(
-      self::CONFIG_IDS => self::IDS_MANUAL,
       self::CONFIG_TIMESTAMPS => false,
     ) + parent::getConfiguration();
   }
@@ -34,6 +37,17 @@ final class PhabricatorAuthSession extends PhabricatorAuthDAO
 
   public function getIdentityObject() {
     return $this->assertAttached($this->identityObject);
+  }
+
+  public static function getSessionTypeTTL($session_type) {
+    switch ($session_type) {
+      case self::TYPE_WEB:
+        return (60 * 60 * 24 * 30); // 30 days
+      case self::TYPE_CONDUIT:
+        return (60 * 60 * 24); // 24 hours
+      default:
+        throw new Exception(pht('Unknown session type "%s".', $session_type));
+    }
   }
 
 
