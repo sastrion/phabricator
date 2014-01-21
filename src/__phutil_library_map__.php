@@ -1255,6 +1255,7 @@ phutil_register_library_map(array(
     'PhabricatorCalendarHolidayTestCase' => 'applications/calendar/storage/__tests__/PhabricatorCalendarHolidayTestCase.php',
     'PhabricatorCalendarViewStatusController' => 'applications/calendar/controller/PhabricatorCalendarViewStatusController.php',
     'PhabricatorCampfireProtocolAdapter' => 'infrastructure/daemon/bot/adapter/PhabricatorCampfireProtocolAdapter.php',
+    'PhabricatorChangeParserTestCase' => 'applications/repository/worker/__tests__/PhabricatorChangeParserTestCase.php',
     'PhabricatorChangesetResponse' => 'infrastructure/diff/PhabricatorChangesetResponse.php',
     'PhabricatorChatLogChannel' => 'applications/chatlog/storage/PhabricatorChatLogChannel.php',
     'PhabricatorChatLogChannelListController' => 'applications/chatlog/controller/PhabricatorChatLogChannelListController.php',
@@ -1866,6 +1867,7 @@ phutil_register_library_map(array(
     'PhabricatorRepositoryPHIDTypeMirror' => 'applications/repository/phid/PhabricatorRepositoryPHIDTypeMirror.php',
     'PhabricatorRepositoryPHIDTypePushLog' => 'applications/repository/phid/PhabricatorRepositoryPHIDTypePushLog.php',
     'PhabricatorRepositoryPHIDTypeRepository' => 'applications/repository/phid/PhabricatorRepositoryPHIDTypeRepository.php',
+    'PhabricatorRepositoryParsedChange' => 'applications/repository/data/PhabricatorRepositoryParsedChange.php',
     'PhabricatorRepositoryPullEngine' => 'applications/repository/engine/PhabricatorRepositoryPullEngine.php',
     'PhabricatorRepositoryPullLocalDaemon' => 'applications/repository/daemon/PhabricatorRepositoryPullLocalDaemon.php',
     'PhabricatorRepositoryPushLog' => 'applications/repository/storage/PhabricatorRepositoryPushLog.php',
@@ -3845,6 +3847,7 @@ phutil_register_library_map(array(
     'PhabricatorCalendarHolidayTestCase' => 'PhabricatorTestCase',
     'PhabricatorCalendarViewStatusController' => 'PhabricatorCalendarController',
     'PhabricatorCampfireProtocolAdapter' => 'PhabricatorBotBaseStreamingProtocolAdapter',
+    'PhabricatorChangeParserTestCase' => 'PhabricatorWorkingCopyTestCase',
     'PhabricatorChangesetResponse' => 'AphrontProxyResponse',
     'PhabricatorChatLogChannel' =>
     array(
@@ -4542,6 +4545,7 @@ phutil_register_library_map(array(
     'PhabricatorRepositoryPHIDTypeMirror' => 'PhabricatorPHIDType',
     'PhabricatorRepositoryPHIDTypePushLog' => 'PhabricatorPHIDType',
     'PhabricatorRepositoryPHIDTypeRepository' => 'PhabricatorPHIDType',
+    'PhabricatorRepositoryParsedChange' => 'Phobject',
     'PhabricatorRepositoryPullEngine' => 'PhabricatorRepositoryEngine',
     'PhabricatorRepositoryPullLocalDaemon' => 'PhabricatorDaemon',
     'PhabricatorRepositoryPushLog' =>
