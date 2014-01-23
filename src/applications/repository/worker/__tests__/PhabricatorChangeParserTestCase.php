@@ -406,6 +406,372 @@ final class PhabricatorChangeParserTestCase
       $repository,
       $commits,
       array(
+        '15' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            15,
+          ),
+          array(
+            '/file_copy',
+            null,
+            null,
+            DifferentialChangeType::TYPE_MULTICOPY,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            15,
+          ),
+          array(
+            '/file_copy_x',
+            '/file_copy',
+            '12',
+            DifferentialChangeType::TYPE_MOVE_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            15,
+          ),
+          array(
+            '/file_copy_y',
+            '/file_copy',
+            '12',
+            DifferentialChangeType::TYPE_MOVE_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            15,
+          ),
+          array(
+            '/file_copy_z',
+            '/file_copy',
+            '12',
+            DifferentialChangeType::TYPE_MOVE_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            15,
+          ),
+        ),
+
+        // Add a file from a different revision
+        '14' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            14,
+          ),
+          array(
+            '/file',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_NORMAL,
+            0,
+            14,
+          ),
+          array(
+            '/file_1',
+            '/file',
+            '1',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            14,
+          ),
+        ),
+
+        // Property change on "/"
+        '13' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHANGE,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            13,
+          ),
+        ),
+
+        // Copy a directory, removing and adding files to the copy
+        '12' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            12,
+          ),
+          array(
+            '/dir',
+            null,
+            null,
+            // TODO: This might reasonbly be considered a bug in the parser; it
+            // should probably be COPY_AWAY.
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            12,
+          ),
+          array(
+            '/dir/a',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_NORMAL,
+            0,
+            12,
+          ),
+          array(
+            '/dir/b',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_NORMAL,
+            0,
+            12,
+          ),
+          array(
+            '/dir/subdir',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            12,
+          ),
+          array(
+            '/dir/subdir/a',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_NORMAL,
+            0,
+            12,
+          ),
+          array(
+            '/dir/subdir/b',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_NORMAL,
+            0,
+            12,
+          ),
+          array(
+            '/dir_copy',
+            '/dir',
+            '11',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            12,
+          ),
+          array(
+            '/dir_copy/a',
+            '/dir/a',
+            '11',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            12,
+          ),
+          array(
+            '/dir_copy/b',
+            '/dir/b',
+            '11',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            12,
+          ),
+          array(
+            '/dir_copy/subdir',
+            '/dir/subdir',
+            '11',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            12,
+          ),
+          array(
+            '/dir_copy/subdir/a',
+            '/dir/subdir/a',
+            '11',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            12,
+          ),
+          array(
+            '/dir_copy/subdir/b',
+            '/dir/subdir/b',
+            '11',
+            DifferentialChangeType::TYPE_DELETE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            12,
+          ),
+          array(
+            '/dir_copy/subdir/c',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            12,
+          ),
+        ),
+
+        // Add a directory with a subdirectory and files, sets up next commit
+        '11' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            11,
+          ),
+          array(
+            '/dir',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            11,
+          ),
+          array(
+            '/dir/a',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            11,
+          ),
+          array(
+            '/dir/b',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            11,
+          ),
+          array(
+            '/dir/subdir',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            11,
+          ),
+          array(
+            '/dir/subdir/a',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            11,
+          ),
+          array(
+            '/dir/subdir/b',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            11,
+          ),
+        ),
+
+        // Remove directory
+        '10' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            10,
+          ),
+          array(
+            '/dir',
+            null,
+            null,
+            DifferentialChangeType::TYPE_DELETE,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            10,
+          ),
+          array(
+            '/dir/subfile',
+            null,
+            null,
+            DifferentialChangeType::TYPE_DELETE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            10,
+          ),
+        ),
+
+        // Replace directory with file
+        '9' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            9,
+          ),
+          array(
+            '/file_moved',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHANGE,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            9,
+          ),
+        ),
+
+        // Replace file with file
+        '8' => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            8,
+          ),
+          array(
+            '/file_moved',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHANGE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            8,
+          ),
+        ),
+
         '7' => array(
           array(
             '/',
@@ -586,6 +952,158 @@ final class PhabricatorChangeParserTestCase
       ));
   }
 
+  public function testSubversionPartialParser() {
+    $repository = $this->buildBareRepository('CHD');
+    $repository->setDetail('svn-subpath', 'trunk/');
+
+    id(new PhabricatorRepositoryPullEngine())
+      ->setRepository($repository)
+      ->pullRepository();
+
+    id(new PhabricatorRepositoryDiscoveryEngine())
+      ->setRepository($repository)
+      ->discoverCommits();
+
+    $viewer = PhabricatorUser::getOmnipotentUser();
+
+    $commits = id(new DiffusionCommitQuery())
+      ->setViewer($viewer)
+      ->withRepositoryIDs(array($repository->getID()))
+      ->execute();
+
+    $this->expectChanges(
+      $repository,
+      $commits,
+      array(
+        // Copy of a file outside of the subpath from an earlier revision
+        // into the subpath.
+        4 => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            4,
+          ),
+          array(
+            '/goat',
+            null,
+            null,
+            DifferentialChangeType::TYPE_COPY_AWAY,
+            DifferentialChangeType::FILE_NORMAL,
+            0,
+            4,
+          ),
+          array(
+            '/trunk',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            4,
+          ),
+          array(
+            '/trunk/goat',
+            '/goat',
+            '1',
+            DifferentialChangeType::TYPE_COPY_HERE,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            4,
+          ),
+        ),
+        3 => array(
+          array(
+            '/',
+            null,
+            null,
+            DifferentialChangeType::TYPE_CHILD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            0,
+            3,
+          ),
+          array(
+            '/trunk',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_DIRECTORY,
+            1,
+            3,
+          ),
+          array(
+            '/trunk/apple',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            3,
+          ),
+          array(
+            '/trunk/banana',
+            null,
+            null,
+            DifferentialChangeType::TYPE_ADD,
+            DifferentialChangeType::FILE_NORMAL,
+            1,
+            3,
+          ),
+        ),
+      ));
+  }
+
+  public function testSubversionValidRootParser() {
+    // First, automatically configure the root correctly.
+    $repository = $this->buildBareRepository('CHD');
+    id(new PhabricatorRepositoryPullEngine())
+      ->setRepository($repository)
+      ->pullRepository();
+
+    $caught = null;
+    try {
+      id(new PhabricatorRepositoryDiscoveryEngine())
+        ->setRepository($repository)
+        ->discoverCommits();
+    } catch (Exception $ex) {
+      $caught = $ex;
+    }
+
+    $this->assertEqual(
+      false,
+      ($caught instanceof Exception),
+      pht('Natural SVN root should work properly.'));
+
+
+    // This time, artificially break the root. We expect this to fail.
+    $repository = $this->buildBareRepository('CHD');
+    $repository->setDetail(
+      'remote-uri',
+      $repository->getDetail('remote-uri').'trunk/');
+
+    id(new PhabricatorRepositoryPullEngine())
+      ->setRepository($repository)
+      ->pullRepository();
+
+    $caught = null;
+    try {
+      id(new PhabricatorRepositoryDiscoveryEngine())
+        ->setRepository($repository)
+        ->discoverCommits();
+    } catch (Exception $ex) {
+      $caught = $ex;
+    }
+
+    $this->assertEqual(
+      true,
+      ($caught instanceof Exception),
+      pht('Artificial SVN root should fail.'));
+  }
+
+
   private function expectChanges(
     PhabricatorRepository $repository,
     array $commits,
@@ -657,7 +1175,10 @@ final class PhabricatorChangeParserTestCase
       ksort($dicts);
       ksort($expect_changes);
 
-      $this->assertEqual($expect_changes, $dicts);
+      $this->assertEqual(
+        $expect_changes,
+        $dicts,
+        pht('Commit %s', $commit_identifier));
     }
   }
 
