@@ -248,11 +248,28 @@ abstract class PhabricatorApplication
    * @param  PhabricatorUser    The viewing user.
    * @param  AphrontController  The current controller. May be null for special
    *                            pages like 404, exception handlers, etc.
-   * @return list<PhabricatorMainMenuIconView> List of menu items.
+   * @return list<PHUIListItemView> List of menu items.
    * @task ui
    */
   public function buildMainMenuItems(
     PhabricatorUser $user,
+    PhabricatorController $controller = null) {
+    return array();
+  }
+
+
+  /**
+   * Build extra items for the main menu. Generally, this is used to render
+   * static dropdowns.
+   *
+   * @param  PhabricatorUser    The viewing user.
+   * @param  AphrontController  The current controller. May be null for special
+   *                            pages like 404, exception handlers, etc.
+   * @return view               List of menu items.
+   * @task ui
+   */
+  public function buildMainMenuExtraNodes(
+    PhabricatorUser $viewer,
     PhabricatorController $controller = null) {
     return array();
   }
@@ -267,6 +284,17 @@ abstract class PhabricatorApplication
    */
   public function getQuickCreateURI() {
     return null;
+  }
+
+
+  /**
+   * Build items for the "quick create" menu.
+   *
+   * @param   PhabricatorUser         The viewing user.
+   * @return  list<PHUIListItemView>  List of menu items.
+   */
+  public function getQuickCreateItems(PhabricatorUser $viewer) {
+    return array();
   }
 
 
