@@ -28,10 +28,6 @@ final class PhabricatorApplicationManiphest extends PhabricatorApplication {
     );
   }
 
-  public function getQuickCreateURI() {
-    return $this->getBaseURI().'task/create/';
-  }
-
   public function getEventListeners() {
     return array(
       new ManiphestNameIndexEventListener(),
@@ -94,7 +90,7 @@ final class PhabricatorApplicationManiphest extends PhabricatorApplication {
     $items = array();
 
     $item = id(new PHUIListItemView())
-      ->setName(pht('New Maniphest Task'))
+      ->setName(pht('Maniphest Task'))
       ->setIcon('new')
       ->setHref($this->getBaseURI().'task/create/');
     $items[] = $item;
