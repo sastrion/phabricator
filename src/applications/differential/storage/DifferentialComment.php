@@ -21,6 +21,12 @@ final class DifferentialComment extends DifferentialDAO
   private $arbitraryDiffForFacebook;
   private $proxyComment;
 
+  public function __clone() {
+    if ($this->proxyComment) {
+      $this->proxyComment = clone $this->proxyComment;
+    }
+  }
+
   public function getContent() {
     return $this->getProxyComment()->getContent();
   }
@@ -127,24 +133,27 @@ final class DifferentialComment extends DifferentialDAO
     $this->openTransaction();
       $result = parent::save();
 
-      $content_source = PhabricatorContentSource::newForSource(
-        PhabricatorContentSource::SOURCE_LEGACY,
-        array());
+      if ($this->getContent() !== null) {
+        $content_source = PhabricatorContentSource::newForSource(
+          PhabricatorContentSource::SOURCE_LEGACY,
+          array());
 
-      $xaction_phid = PhabricatorPHID::generateNewPHID(
-        PhabricatorApplicationTransactionPHIDTypeTransaction::TYPECONST,
-        DifferentialPHIDTypeRevision::TYPECONST);
+        $xaction_phid = PhabricatorPHID::generateNewPHID(
+          PhabricatorApplicationTransactionPHIDTypeTransaction::TYPECONST,
+          DifferentialPHIDTypeRevision::TYPECONST);
 
-      $proxy = $this->getProxyComment();
-      $proxy
-        ->setAuthorPHID($this->getAuthorPHID())
-        ->setViewPolicy('public')
-        ->setEditPolicy($this->getAuthorPHID())
-        ->setContentSource($content_source)
-        ->setCommentVersion(1)
-        ->setLegacyCommentID($this->getID())
-        ->setTransactionPHID($xaction_phid)
-        ->save();
+        $proxy = $this->getProxyComment();
+        $proxy
+          ->setAuthorPHID($this->getAuthorPHID())
+          ->setViewPolicy('public')
+          ->setEditPolicy($this->getAuthorPHID())
+          ->setContentSource($content_source)
+          ->setCommentVersion(1)
+          ->setLegacyCommentID($this->getID())
+          ->setTransactionPHID($xaction_phid)
+          ->save();
+      }
+
     $this->saveTransaction();
 
     return $result;
